@@ -1,0 +1,1463 @@
+//ZBkiller 
+//Trabalho de computação I - 2016.1
+//Jogo de Paula Madeira e Ricardo Vasconcelos
+//PRGames©
+
+#include <stdio.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_ttf.h>
+
+#define emax 4
+#define MAX_BULLETS 1000
+
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 600;
+
+typedef struct
+{
+	float x, y, w, h;
+	int life;
+	char *nome;
+	int shooting, alive, left, right, up, down, score;
+} PLAYER;
+
+typedef struct 
+{
+	float x, y, w, h;
+}LIFE;
+
+
+typedef struct 
+{
+	float x, y, w, h;
+	int alive;
+} Enemy;
+
+typedef struct 
+{
+	float x, y, w, h;
+	int alive, life;
+} Boss;
+
+typedef struct
+{
+	int x, y, velx, vely;
+} Bullet;
+
+typedef struct
+{
+	int x, y, w, h, aparece;
+} Premio;
+
+typedef struct 
+{
+	PLAYER player;
+
+	Enemy zombie[emax];
+
+	LIFE vidas;
+
+	Boss chefe;
+
+	Premio premio;
+
+	//font
+	
+	//logo
+	SDL_Texture *logo;
+
+	//menu
+	SDL_Texture *menu;
+
+	//instrucoes
+	SDL_Texture *instrucoes;
+
+	//creditos
+	SDL_Texture *creditos;
+
+	//background
+	SDL_Texture *background;
+
+	// life
+	SDL_Texture *vidasImg;
+	SDL_Rect lRect;
+
+	//background game over
+	SDL_Texture *background_gameover;
+
+	//background you win
+	SDL_Texture *background_youwin;
+
+	//bullet
+	SDL_Texture *bulletTexture;
+
+	//player
+	SDL_Texture *playerImg;
+	SDL_Rect pRect;		
+	
+	//enemy
+	SDL_Texture *enemyImg;
+	SDL_Rect eRect;	
+
+	//premio 1
+	SDL_Texture *premioImg;
+
+	//chefe
+	SDL_Texture *chefeImg;
+
+	//renderer
+	SDL_Renderer *renderer;
+
+//mus do tiro
+	Mix_Music *fire;
+
+	//musicadomenu
+	Mix_Music *sound_menu;
+
+	// Mix_Music *bau;
+
+	Mix_Music *musChefe;
+
+} GameState;
+
+	int gameRunning = 1; 
+
+	TTF_Font *font;
+	SDL_Surface* surfaceMessage;
+	SDL_Texture* Message;
+
+	Bullet *bullets[MAX_BULLETS] = {NULL};
+
+	int troca=0, opcao=0; 
+	int time = 1;
+	int pause = 0;
+	int passou_fase = 0;
+	int fase2 = 0;
+	int times = 0;
+	int vezes = 0;
+
+
+void addBullet(int x, int y, int velx, int vely)
+{
+	int found = -1;
+	for(int i = 0; i < MAX_BULLETS; i++)
+	{
+	    if(bullets[i] == NULL)
+	    {
+	      found = i;
+	      break;
+	    }
+	}
+    
+	if(found >= 0)
+	{
+	    int i = found;
+	    bullets[i] = malloc(sizeof(Bullet));
+	    bullets[i]->x = x;
+	    bullets[i]->y = y;
+	    bullets[i]->velx = velx;  
+	    bullets[i]->vely = vely;
+  	}
+}
+
+void removeBullet(int i)
+{
+	if(bullets[i])
+	{
+	    free(bullets[i]);
+	    bullets[i] = NULL;
+	}
+}
+
+void LoadGame(GameState *game)
+{
+	SDL_Surface *surface = NULL;
+	int i;
+
+	//img logo
+	surface = IMG_Load("logomarca.jpg");
+	if(surface == NULL)
+	{
+		printf("Can't find logomarca.jpg!\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->logo = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//img menu
+	surface = IMG_Load("menu.png");
+	if(surface == NULL)
+	{
+		printf("Can't find menu.png!\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->menu = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//instrucoes
+	surface = IMG_Load("instrucoes.jpg");
+	if(surface == NULL)
+	{
+		printf("Can't find instUYSAGDrucoes.jpeg!\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->instrucoes = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//creditos
+	surface = IMG_Load("creditos1.jpg");
+	if(surface == NULL)
+	{
+		printf("Can't find creditos.jpg!\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->creditos = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//fundo
+	surface = IMG_Load("background.jpg");
+	if(surface == NULL)
+	{
+		printf("Can't find background.jpg!\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->background = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//fundo game over
+	surface = IMG_Load("gameover.jpg");
+	if(surface == NULL)
+	{
+		printf("Can't find gameover.jpg!\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->background_gameover = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//fundo you win
+	surface = IMG_Load("youwin.png");
+	if(surface == NULL)
+	{
+	 	printf("Can't find YouWin.png!\n");
+	 	SDL_Quit();
+	 	exit(1);
+	}
+
+	game->background_youwin = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//vidas
+	game->lRect.x = 0;
+	game->lRect.y = 0;
+	game->lRect.w = game->vidas.w;
+	game->lRect.h = game->vidas.h;
+
+	//player
+	game->pRect.x = 0;
+	game->pRect.y = 0;
+	game->pRect.w = game->player.w;
+	game->pRect.h = game->player.h;
+
+	game->eRect.x = 0;
+	game->eRect.y = 0;
+	game->eRect.w = game->zombie[0].w;
+	game->eRect.h = game->zombie[0].h;
+
+	//vidas
+	surface = IMG_Load("life.png");
+	if(surface == NULL)
+	{
+		printf("Cant finf");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->vidasImg = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//player
+	surface = IMG_Load("player.png");
+	if(surface == NULL)
+	{
+		printf("Can't find player.png!\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->playerImg = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//enemy
+	surface = IMG_Load("enemy.png");
+	if(surface == NULL)
+	{
+		printf("Can't find enemy2.png!\n");
+		SDL_Quit();
+		exit(1);
+	}
+	
+	game->enemyImg = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//bullet
+	surface = IMG_Load("bullet.png");
+	if(surface == NULL)
+	{
+		printf("can't find bullet.png\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->bulletTexture = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//premio
+	surface = IMG_Load("bau1.png");
+	if(surface == NULL)
+	{
+		printf("can't find bau1.png\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->premioImg = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	//chefe
+	surface = IMG_Load("chefe.png");
+	if(surface == NULL)
+	{
+		printf("can't find chefe.png\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->chefeImg = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	if(TTF_Init() == -1)
+	{
+		printf("SDL_ttf could not initialize.\n");
+	}
+	
+	font = TTF_OpenFont("VideoPhreak.ttf", 18);
+	if(font == NULL)
+		{
+			printf("%s\n", TTF_GetError());
+		}
+}
+
+void premioLogic (GameState *game)
+{
+	if (game->premio.aparece == 1)
+	{
+
+		if (game->premio.x + 20 <= game->player.x + 60 && game->premio.x + 20 >= game->player.x)
+	    { 
+	    	if(game->premio.y + 15 <= game->player.y + 90 && game->premio.y + 15 >= game->player.y)
+	   	  	{
+	   	  		game->premio.aparece = 0;
+
+	   	  		fase2 = 1;
+	   	  
+	   	  		vezes++;
+
+	   	  		if(vezes == 1)
+	   	  		{
+	   	  			Mix_PlayMusic( game->musChefe, -1 );
+	   	  		}
+	   	  	}
+	    }
+
+	}
+}
+
+int processEvent(SDL_Window *window, GameState *game)
+{
+	SDL_Event event;
+	int speedP = 5, speedE = 1, i;
+	float speedB = 1.5;
+	float j;
+		
+	while(SDL_PollEvent(&event))
+	{
+		switch(event.type)
+		{
+			case SDL_QUIT:
+				gameRunning = 0;
+			break;
+
+			case SDL_KEYDOWN:
+				switch(event.key.keysym.sym)
+				{
+					case SDLK_p:
+						if(pause == 0)
+						{
+							pause = 1;
+						}
+
+						else
+							pause = 0;
+					break;
+				}
+
+			break;
+
+		}
+	}
+
+	if(pause == 0)
+	{
+		const Uint8 *state = SDL_GetKeyboardState(NULL);
+			if(state[SDL_SCANCODE_ESCAPE])
+			{
+				gameRunning = 0;
+			}
+			//player moviments
+		    if(state[SDL_SCANCODE_DOWN])
+		    {
+		        game->player.up = 0;
+				game->player.right = 0;
+				game->player.left = 0;
+				game->player.down = 1;
+
+		       	game->player.y += speedP;
+
+		       	game->pRect.y += 0;
+					
+		       	if(game->pRect.x == 0)
+		       		game->pRect.x += 38;
+
+				if(game->pRect.x == 114)
+					game->pRect.x = 0;
+		    }
+
+		    if(state[SDL_SCANCODE_LEFT])
+		    {
+		    	game->player.left = 0;
+		    	game->player.right = 1;
+		    	game->player.up = 0;
+
+		       	game->player.x -= speedP;
+
+		       	game->pRect.y = 48;
+					
+		       	if(game->pRect.x == 0)
+		       		game->pRect.x += 38;
+
+				if(game->pRect.x == 114)
+					game->pRect.x = 0;
+
+		    }
+
+		    if(state[SDL_SCANCODE_RIGHT])
+		    {
+		    	game->player.right = 0;
+		    	game->player.left = 1;
+		    	game->player.up = 0;
+
+		    	game->player.x += speedP;
+
+		    	game->pRect.y = 96;
+					
+		       	if(game->pRect.x == 0)
+		       		game->pRect.x += 38;
+
+				if(game->pRect.x == 114)
+					game->pRect.x = 0;
+			}
+
+		    if(state[SDL_SCANCODE_UP])
+		    {
+				game->player.up = 1;
+				game->player.right = 0;
+				game->player.left = 0;
+				game->player.down = 0;
+
+				game->player.y -= speedP;
+
+				game->pRect.y = 144;
+
+				if(game->pRect.x == 0)
+					game->pRect.x += 38;
+					
+				if(game->pRect.x == 114)
+					game->pRect.x = 0;
+		   	}		    
+
+		   	//shooting
+		    if(state[SDL_SCANCODE_SPACE])
+		   	{
+		   		time++;
+
+		   		if (game->player.left == 1)
+		   		{
+			 		game->pRect.x = 114;
+			 		game->pRect.y = 96;
+			 
+
+			   		if (time % 6 == 0)
+			   		{
+			   			addBullet(game->player.x + 38, game->player.y + 36, 6, 0);
+			   		}
+
+		   		}
+
+		   		else if (game->player.right == 1)
+		   		{
+		   			game->pRect.x = 114;
+			 		game->pRect.y = 48;
+
+			   		if (time % 6 == 0)
+			   		{
+			   			addBullet(game->player.x, game->player.y + 36, -6, 0);
+			   		}
+
+		   		}
+
+		   		else if(game->player.up == 1)
+		   		{
+		   			game->pRect.x = 0;
+		   			game->pRect.y = 144;
+
+		   			if(time % 6 == 0)
+		   			{
+		   				addBullet(game->player.x + 19, game->player.y, 0, -6);
+		   			}
+
+		   		}
+
+		   		else if(game->player.down == 1)
+		   		{
+		   			game->pRect.x = 114;
+		   			game->pRect.y = 0;
+
+		   			if(time % 6 == 0)
+		   			{
+		   				addBullet(game->player.x + 19, game->player.y + 48, 0, 6);
+		   			}
+		   		}
+
+		   		game->player.shooting = 1;
+		   	}
+
+		   	else
+		   	{
+		   		game->player.shooting = 0;
+		   	}
+
+		    //zombie moviments
+		   	for(i = 0; i < emax; i++)
+		   	{
+			    if(game->zombie[i].x < game->player.x)
+			    {
+			    	//right
+			    	for(j=0.5; j <= speedE; j++)
+			    	{
+			    		game->zombie[i].x += j;
+
+			    		game->eRect.y = 35;
+
+			    		if(game->eRect.x == 0)
+			    			game->eRect.x += 29;
+			    		if(game->eRect.x == 87)
+			    			game->eRect.x = 0;
+
+			    		if(game->zombie[i].x == game->player.x)
+			    		{
+			    			speedE = 1;
+			    		}
+			    		
+			    	}
+			    }
+
+			    if(game->zombie[i].x > game->player.x)
+			    {
+			    	//left
+			    	for(j=0.5; j <= speedE; j++)
+			    	{
+			    		game->zombie[i].x -= j;
+
+			    		game->eRect.y = 105;
+
+			    		if(game->eRect.x == 0)
+			    			game->eRect.x += 29;
+			    		if(game->eRect.x == 87)
+			    			game->eRect.x = 0;
+
+			    		if(game->zombie[i].x == game->player.x)
+			    		{
+			    			speedE = 1;
+			    		}
+			    		
+			    	}
+			    }
+
+			    if(game->zombie[i].y < game->player.y)
+			    {
+			    	//down
+			    	for(j=0.5; j <= speedE; j++)
+			    	{
+			    		game->zombie[i].y += j;
+
+			    		game->eRect.y = 0;
+
+			    		if(game->eRect.x == 0)
+			    			game->eRect.x += 29;
+			    		if(game->eRect.x == 87)
+			    			game->eRect.x = 0;
+
+			    		if(game->zombie[i].y == game->player.y)
+			    		{
+			    			speedE = 1;
+			    		}
+			    		
+			    	}
+			    }
+
+			    if(game->zombie[i].y > game->player.y)
+			    {
+			    	//up
+			    	for(j=0.5; j <= speedE; j++)
+			    	{
+			    		game->zombie[i].y -= j;
+
+			    		game->eRect.y = 70;
+
+			    		if(game->eRect.x == 0)
+			    			game->eRect.x += 29;
+			    		if(game->eRect.x == 87)
+			    			game->eRect.x = 0;
+
+			    		if(game->zombie[i].y == game->player.y)
+			    		{
+			    			speedE = 1;
+			    		}
+			    		
+			    	}
+			    }
+				if(game->zombie[i].x < game->player.x && game->zombie[i].y < game->player.y)
+				{
+					for(j=0.5; j <= speedE; j++)
+					{
+						game->zombie[i].x += j;
+						game->zombie[i].y += j;
+						if(game->zombie[i].x == game->player.x || game->zombie[i].y == game->player.y)
+						{
+			    			speedE = 1;
+			    		}
+			    		
+					}
+				}
+				if (game->zombie[i].x > game->player.x && game->zombie[i].y > game->player.y)
+				{
+					for(j=0.5; j <= speedE; j++)
+					{
+						game->zombie[i].x -= j;
+						game->zombie[i].y -= j;
+						if(game->zombie[i].x == game->player.x || game->zombie[i].y == game->player.y)
+						{
+			    			speedE = 1;
+			    		}
+			    		
+					}
+				}
+				if(game->zombie[i].y < game->player.y && game->zombie[i].x > game->player.x)
+				{
+					for(j=0.5; j <= speedE; j++)
+					{
+						game->zombie[i].y += j;
+			 			game->zombie[i].x -= j;
+			 			if(game->zombie[i].x == game->player.x || game->zombie[i].y == game->player.y)
+			 			{
+			    			speedE = 1;
+			    		}
+			    		
+			 		}
+			 	}
+			 	if(game->zombie[i].y > game->player.y && game->zombie[i].x < game->player.x)
+				{
+					for(j=0.5; j <= speedE; j++)
+					{
+						game->zombie[i].y -= j;
+						game->zombie[i].x += j;
+						if(game->zombie[i].x == game->player.x || game->zombie[i].y == game->player.y)
+			 			{
+			    			speedE = 1;
+			    		}
+			    		
+					}
+				}
+
+			}
+
+
+			if(fase2 == 1)
+			{
+
+				if(game->chefe.x < game->player.x)
+			    {
+			    	for(j=0.2; j <= speedB; j++)
+			    	{
+			    		game->chefe.x += j;
+
+			    		if(game->chefe.x == game->player.x)
+			    		{
+			    			speedB = 0.7;
+			    		}
+			    		
+			    	}
+			    }
+			    if(game->chefe.x > game->player.x)
+			    {
+			    	for(j=0.2; j <= speedB; j++)
+			    	{
+			    		game->chefe.x -= j;
+
+			    		if(game->chefe.x == game->player.x)
+			    		{
+			    			speedB = 0.7;
+			    		}
+			    		
+			    	}
+			    }
+
+			    if(game->chefe.y < game->player.y)
+			    {
+			    	for(j=0.2; j <= speedB; j++)
+			    	{
+			    		game->chefe.y += j;
+
+			    		if(game->chefe.y == game->player.y)
+			    		{
+			    			speedB = 0.7;
+			    		}
+			    		
+			    	}
+			    }
+			    if(game->chefe.y > game->player.y)
+			    {
+			    	for(j=0.2; j <= speedB; j++)
+			    	{
+			    		game->chefe.y -= j;
+
+			    		if(game->chefe.y == game->player.y)
+			    		{
+			    			speedB = 0.7;
+			    		}
+			    		
+			    	}
+			    }
+				if(game->chefe.x < game->player.x && game->chefe.y < game->player.y)
+				{
+					for(j=0.2; j <= speedB; j++)
+					{
+						game->chefe.x += j;
+						game->chefe.y += j;
+
+						if(game->chefe.x == game->player.x || game->chefe.y == game->player.y)
+						{
+			    			speedB = 0.7;
+			    		}
+			    		
+					}
+				}
+				if (game->chefe.x > game->player.x && game->chefe.y > game->player.y)
+				{
+					for(j=0.2; j <= speedB; j++)
+					{
+						game->chefe.x -= j;
+						game->chefe.y -= j;
+						if(game->chefe.x == game->player.x || game->chefe.y == game->player.y)
+						{
+			    			speedB = 0.7;
+			    		}
+			    		
+					}
+				}
+				if(game->chefe.y < game->player.y && game->chefe.x > game->player.x)
+				{
+					for(j=0.2; j <= speedB; j++)
+					{
+						game->chefe.y += j;
+			 			game->chefe.x -= j;
+
+			 			if(game->chefe.x == game->player.x || game->chefe.y == game->player.y)
+			 			{
+			    			speedB = 0.7;
+			    		}
+			    		
+			 		}
+			 	}
+			 	if(game->chefe.y > game->player.y && game->chefe.x < game->player.x)
+				{
+					for(j=0.2; j <= speedB; j++)
+					{
+						game->chefe.y -= j;
+						game->chefe.x += j;
+
+						if(game->chefe.x == game->player.x || game->chefe.y == game->player.y)
+			 			{
+			    			speedB = 0.7;
+			    		}	
+					}
+				}
+
+			}
+		}
+
+
+	return gameRunning;
+}
+
+
+void doRender(GameState *game)
+{
+	int i;
+
+	if(game->player.alive == 1)
+	{
+		SDL_Color Red = {0, 0, 0};
+		char pontuacao[100];
+
+		sprintf(pontuacao, "score: %d", game->player.score);
+
+		surfaceMessage = TTF_RenderText_Solid(font, pontuacao, Red);
+		Message = SDL_CreateTextureFromSurface(game->renderer, surfaceMessage);
+
+		SDL_Rect Message_rect;
+		Message_rect.x = 62;
+		Message_rect.y = 62;
+		Message_rect.w = 220;
+		Message_rect.h = 100;
+
+		SDL_RenderCopy(game->renderer, Message, NULL, &Message_rect);
+		SDL_RenderPresent(game->renderer);
+		
+
+		//Desenhando o fundo
+		SDL_RenderCopy(game->renderer, game->background, NULL, NULL);
+
+		
+		//desenhando as vidas
+		SDL_Rect vidasRect = {game->vidas.x, game->vidas.y, game->vidas.w, game->vidas.h};
+		SDL_RenderCopy(game->renderer, game->vidasImg, &game->lRect, &vidasRect);
+
+		//Desenhando o "player"
+		SDL_Rect rect = {game->player.x, game->player.y, game->player.w, game->player.h};
+		SDL_RenderCopy(game->renderer, game->playerImg, &game->pRect, &rect);
+
+		//Desenhando os inimigos
+		for(i = 0; i < emax; i++)
+		{
+			if (game->zombie[i].alive == 1)
+			{
+				SDL_Rect enemyRect = {game->zombie[i].x, game->zombie[i].y, game->zombie[i].w, game->zombie[i].h};
+				SDL_RenderCopy(game->renderer, game->enemyImg, &game->eRect, &enemyRect);
+			}
+		}
+	
+		//Desenhando o bullet
+		for(i = 0; i < MAX_BULLETS; i++) if(bullets[i])
+		{
+			SDL_Rect rect = {bullets[i]->x, bullets[i]->y, 16, 16};
+			SDL_RenderCopy(game->renderer, game->bulletTexture, NULL, &rect);
+		}
+
+		//Desenhado o baú
+		if (game->premio.aparece == 1)
+		{
+			if (fase2 == 0)
+			{
+				SDL_Rect rect = {game->premio.x, game->premio.y, 36, 29};
+				SDL_RenderCopy(game->renderer, game->premioImg, NULL, &rect);
+			}
+		}
+
+		if(fase2 == 1)
+		{
+			if(game->chefe.alive == 1)
+			{
+				SDL_Rect rect = {game->chefe.x, game->chefe.y, 80, 189};
+				SDL_RenderCopy(game->renderer, game->chefeImg, NULL, &rect);
+			}
+
+			else
+			{
+				SDL_RenderCopy(game->renderer, game->background_youwin, NULL, NULL);
+			  	SDL_RenderPresent(game->renderer);
+			}
+		}
+	
+		//Mostrando a obra de arte para o usuário :)
+		
+	}
+
+	if(game->player.alive == 0)
+	{
+		//desenhando a fonte
+		
+		
+		//Desenhando o fundo game over
+		SDL_RenderCopy(game->renderer, game->background_gameover, NULL, NULL);
+		SDL_RenderPresent(game->renderer);
+
+	}
+
+	
+}
+
+void collisionPlayerPremio (SDL_Window *window, GameState *game)
+{
+	if (game->premio.x+36 <= game->player.x+38 && game->premio.x+36 >= game->player.x)
+	{ 
+    	if(game->premio.y+29 <= game->player.y+48 && game->premio.y+29 >= game->player.y)
+   	  	{
+   	   			game->premio.aparece = 0;
+   	   	}
+    }	
+}
+
+void bossLogic (GameState *game)
+{
+	int speedB = 5, wallWidth = 22;
+
+	if(game->chefe.y < wallWidth)
+		game->chefe.y += speedB;
+	else if(game->chefe.y > 600-22)
+		game->chefe.y -= speedB;	
+
+	if (game->chefe.y < wallWidth) 
+    {
+        game->chefe.y = wallWidth;
+    }
+    else if (game->chefe.y > (SCREEN_HEIGHT-wallWidth)-game->chefe.h) 
+    {        
+    	game->chefe.y = (SCREEN_HEIGHT-wallWidth)-game->chefe.h;
+    }
+
+
+}
+
+void collisionPlayer(SDL_Window *window, GameState *game)
+{
+    int wallWidth = 22;
+
+    if (game->player.x < wallWidth ) 
+    {
+        game->player.x = wallWidth;
+    }
+    else if (game->player.x > (SCREEN_WIDTH-wallWidth)-game->player.w) 
+    {
+        game->player.x = (SCREEN_WIDTH-wallWidth)-game->player.w;
+    }
+    if (game->player.y < wallWidth) 
+    {
+        game->player.y = wallWidth;
+    }
+    else if (game->player.y > (SCREEN_HEIGHT-wallWidth)-game->player.h) 
+    {
+        game->player.y = (SCREEN_HEIGHT-wallWidth)-game->player.h;
+    }
+}
+
+void collisionEnemy(SDL_Window *window, GameState *game)
+{
+    int wallWidth = 22;
+    int i;
+
+    for(i = 0; i < emax; i++)
+    { 
+	    if (game->zombie[i].x < wallWidth ) 
+	    {
+	        game->zombie[i].x = wallWidth;
+	    }
+	    else if (game->zombie[i].x > (SCREEN_WIDTH-wallWidth)-game->zombie[i].w) 
+	    {
+	        game->zombie[i].x = (SCREEN_WIDTH-wallWidth)-game->zombie[i].w;
+	    }
+	    if (game->zombie[i].y < wallWidth) 
+	    {
+	        game->zombie[i].y = wallWidth;
+	    }
+	    else if (game->zombie[i].y > (SCREEN_HEIGHT-wallWidth)-game->zombie[i].h) 
+	    {
+	        game->zombie[i].y = (SCREEN_HEIGHT-wallWidth)-game->zombie[i].h;
+	    }
+	}
+}
+
+void collisionPvE(GameState *game, int i)
+{	
+	game->player.life = 5;
+	game->vidas.x = 0;
+	game->vidas.y = 0;
+	game->lRect.h = 34;
+
+	if (game->zombie[i].x + 29 <= game->player.x + 38 && game->zombie[i].x + 29 >= game->player.x)
+	{ 
+    	if(game->zombie[i].y + 35 <= game->player.y + 48 && game->zombie[i].y + 35 >= game->player.y)
+   	  	{
+   			game->player.life --;
+
+			if(game->player.life = 5)
+			{
+				game->lRect.w = 190;
+				game->vidas.w = 190;
+			}
+
+			if(game->player.life = 4)
+			{
+	   			game->lRect.w = 150;
+	   			game->vidas.w = 150;
+			}
+
+	   		if(game->player.life = 3)
+	   		{
+	   			game->lRect.w = 110;
+	   			game->vidas.w = 110;
+	   		}
+
+	   		if(game->player.life = 2)
+	   		{
+				game->lRect.w = 70;
+				game->vidas.w = 70;
+	   		}
+
+	   		if(game->player.life = 1)
+	   		{
+	   			game->lRect.w = 30;
+	   			game->vidas.w = 30;
+	   			game->player.alive = 0;
+	   		}
+
+	   		if(game->player.life = 0)
+	   		{
+	   			game->lRect.w = 2;
+	   			game->vidas.w = 2;
+	   			game->player.alive = 0;
+	   		} 	   	
+		}		
+	}
+}
+
+void collisionBoss (GameState *game)
+{
+	int i;
+
+	if(game->chefe.alive == 1)
+	{
+		if (game->chefe.x+40 <= game->player.x+60 && game->chefe.x+40 >= game->player.x)
+		{ 
+	    	if(game->chefe.y+70 <= game->player.y+90 && game->chefe.y+70 >= game->player.y)
+	   	  	{
+	   	   			game->player.alive = 0;
+	   	   	}
+	    }
+	}
+
+	for(i = 0; i < MAX_BULLETS; i++) if(bullets[i])
+	{
+		times = 0;
+		if(bullets[i]->x >= game->chefe.x && bullets[i]->x <= game->chefe.x+80 
+				&& bullets[i]->y >= game->chefe.y && bullets[i]->y <= game->chefe.y+136)
+	   	{
+	   		removeBullet(i);
+	   		times++;
+	   	}	
+
+	   	if(times == 1)
+	   	{
+	   		game->chefe.life -= 50;
+	   		game->player.score += 150;
+
+	   		printf("%d", game->chefe.alive);
+	   		printf("-----%d\n", game->chefe.life);
+
+	   		if(game->chefe.life == 0)
+	   		{
+	   			game->chefe.alive = 0;
+	   			game->player.score += 200;
+	   			printf("%d\n", game->chefe.alive);
+	   		}
+	   	}
+
+	}
+
+}
+
+void bulletLogic (GameState *game) 
+{
+	int i, j, wallWidth = 22;
+
+	//colisao bala vs enemy
+	for(i = 0; i < MAX_BULLETS; i++) if(bullets[i])
+  	{
+  // 		for(int k = 0; k <= emax; k++)
+		// {	
+				bullets[i]->x += bullets[i]->velx;
+				bullets[i]->y += bullets[i]->vely;
+			
+				if(bullets[i]->x >= game->zombie[i].x && bullets[i]->x <= game->zombie[i].x+80 
+					&& bullets[i]->y >= game->zombie[i].y && bullets[i]->y <= game->zombie[i].y+80)
+			   	{
+			   		game->zombie[0].alive = 0;
+			   		game->player.score += 100;
+
+			   	}
+			
+			   	if(bullets[i]->x >= game->zombie[1].x && bullets[i]->x <= game->zombie[1].x+80 
+					&& bullets[i]->y >= game->zombie[1].y && bullets[i]->y <= game->zombie[1].y+80)
+			   	{
+					game->zombie[1].alive=0;
+					game->player.score += 100;
+			   	}
+			
+			   	if(bullets[i]->x >= game->zombie[2].x && bullets[i]->x <= game->zombie[2].x+80 
+					&& bullets[i]->y >= game->zombie[2].y && bullets[i]->y <= game->zombie[2].y+80)
+			   	{
+			  		game->zombie[2].alive=0;
+			  		game->player.score += 100;
+			   	}
+			
+			   	if(bullets[i]->x >= game->zombie[3].x && bullets[i]->x <= game->zombie[3].x+80 
+					&& bullets[i]->y >= game->zombie[3].y && bullets[i]->y <= game->zombie[3].y+80)
+			   	{
+					game->zombie[3].alive=0;
+					game->player.score += 100;
+			   	}
+			
+				if(bullets[i]->x <= 22 || bullets[i]->x >= 778)
+		      		removeBullet(i);
+		      	else if(bullets[i]->y <= 22 || bullets[i]->y >=578)
+		      		removeBullet(i);
+
+		      	
+	// }	
+	}
+
+	//colisao player vs enemy
+	for(j = 0; j < 4; j++)
+	{
+		if(game->zombie[j].alive == 1)
+		{
+			collisionPvE(game, j);
+		}
+	}
+}
+
+
+void PremioAparece(SDL_Window *window, GameState *game)
+{
+	if(game->zombie[0].alive==0 && game->zombie[1].alive==0 && game->zombie[2].alive==0 && game->zombie[3].alive==0)
+	{
+		game->premio.aparece = 1;
+
+	}
+}
+
+void quitGame (SDL_Window *window, GameState *game)
+{
+	SDL_DestroyWindow(window);
+	SDL_DestroyTexture(game->playerImg);
+	SDL_DestroyRenderer(game->renderer);
+	SDL_DestroyTexture(game->enemyImg);
+	SDL_DestroyTexture(game->background);
+	SDL_DestroyTexture(game->background_gameover);
+	SDL_DestroyTexture(game->menu);
+	SDL_DestroyTexture(game->logo);
+	SDL_DestroyTexture(game->instrucoes);
+	SDL_DestroyTexture(game->creditos);
+	SDL_DestroyTexture(game->bulletTexture);
+	SDL_DestroyTexture(game->background_youwin);
+	SDL_DestroyTexture(game->premioImg);
+	SDL_DestroyTexture(game->chefeImg);
+	SDL_DestroyTexture(Message);
+	SDL_FreeSurface(surfaceMessage);
+	Mix_FreeMusic(game->sound_menu);
+	Mix_FreeMusic(game->fire);
+	Mix_FreeMusic(game->musChefe);
+	TTF_CloseFont(font);
+
+	for(int i = 0; i < MAX_BULLETS; i++)
+	{
+		removeBullet(i);
+	}
+
+	//Limpando a bagunça
+	TTF_Quit();
+	SDL_Quit();
+}
+	
+
+int main(int argc, char *args[])
+{
+	GameState gameState;
+
+	SDL_Window *window = NULL;
+	
+	SDL_Event event;
+
+	Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 1024 );
+
+	gameState.sound_menu = Mix_LoadMUS("menu.mp3");
+
+	gameState.player.alive = 1;
+
+	gameState.player.score = 0;
+
+	gameState.premio.aparece = 0;
+
+	gameState.chefe.alive = 1;
+
+	gameState.player.life = 500;
+
+	gameState.fire = Mix_LoadMUS("fire.mp3");
+
+	gameState.sound_menu = Mix_LoadMUS("menu.mp3");
+
+	gameState.musChefe = Mix_LoadMUS("enemy.mp3"); 
+
+	gameState.chefe.life = 500;
+
+	gameState.vidas.x = 0;
+	gameState.vidas.y = 0;
+	gameState.vidas.w = 190;
+	gameState.vidas.h = 34;
+
+	gameState.player.x = SCREEN_WIDTH/2;
+	gameState.player.y = SCREEN_HEIGHT/2;
+	gameState.player.w = 38;
+	gameState.player.h = 48;
+
+	gameState.premio.x = 200;
+	gameState.premio.y = 100;
+	gameState.premio.w = 36;
+	gameState.premio.h = 29;
+
+	gameState.zombie[0].x = 22;
+	gameState.zombie[0].y = SCREEN_HEIGHT/2;
+	gameState.zombie[0].w = 29;
+	gameState.zombie[0].h = 34;
+
+	gameState.zombie[1].x = SCREEN_WIDTH/2;
+	gameState.zombie[1].y = 22;
+	gameState.zombie[1].w = 29;
+	gameState.zombie[1].h = 34;
+
+	gameState.zombie[2].x = SCREEN_WIDTH;
+	gameState.zombie[2].y = SCREEN_HEIGHT/2;
+	gameState.zombie[2].w = 29;
+	gameState.zombie[2].h = 34;
+
+	gameState.zombie[3].x = SCREEN_WIDTH/2;
+	gameState.zombie[3].y = SCREEN_HEIGHT;
+	gameState.zombie[3].w = 29;
+	gameState.zombie[3].h = 34;
+
+	gameState.chefe.x = SCREEN_WIDTH;
+	gameState.chefe.y = SCREEN_HEIGHT/2;
+	gameState.chefe.w = 80;
+	gameState.chefe.h = 189;
+
+	int i;
+
+	for (i = 0; i < 4; i++)
+	{
+		gameState.zombie[i].alive = 1;
+	}
+ 
+	if(SDL_Init(SDL_INIT_EVERYTHING) < 0)
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Can't init SDL: %s", SDL_GetError());
+
+	window = SDL_CreateWindow("ZBkiller", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+	gameState.renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+	LoadGame(&gameState);
+
+	//apresentando a logo
+	while(troca == 0)
+	{
+		SDL_RenderCopy(gameState.renderer, gameState.logo, NULL, NULL);
+		SDL_RenderPresent(gameState.renderer);
+		SDL_Delay(2000);
+		troca = 1;
+	}
+
+	troca = 0;
+
+	while(troca == 0)
+	{
+		SDL_RenderCopy(gameState.renderer, gameState.logo, NULL, NULL);
+		SDL_RenderPresent(gameState.renderer);
+		SDL_Delay(1000);
+		troca = 1;
+	}
+
+
+	while(opcao != 1)
+	{
+		Mix_PlayMusic(gameState.sound_menu, -1);
+
+	 	while(opcao == 0)
+	 	{
+			SDL_RenderCopy(gameState.renderer, gameState.menu, NULL, NULL);
+			SDL_RenderPresent(gameState.renderer);
+
+			while(SDL_PollEvent(&event))
+			{
+				if(event.type == SDL_KEYDOWN)
+				{
+					switch(event.key.keysym.sym)
+					{
+						case SDLK_1: 
+							opcao=1;
+						break;
+						case SDLK_2: 
+							opcao=2;
+						break;
+						case SDLK_3:
+							opcao=3;
+						break;
+						case SDLK_4: 
+							{gameRunning = 0;
+							quitGame(window, &gameState);
+							return 0;}						
+						break;
+						case SDLK_ESCAPE:
+							{gameRunning = 0;
+							quitGame(window, &gameState);
+							return 0;}
+						break;
+					}
+				}
+				if(event.type == SDL_QUIT)
+				{
+					{gameRunning = 0;
+					quitGame(window, &gameState);
+					return 0;}	
+				}
+
+			}
+	 	}
+
+		while(opcao == 2)
+		{
+			SDL_RenderCopy(gameState.renderer, gameState.instrucoes, NULL, NULL);
+			SDL_RenderPresent(gameState.renderer);
+
+			while(SDL_PollEvent(&event))
+			{
+				if(event.type == SDL_KEYDOWN)
+				{
+					switch(event.key.keysym.sym)
+					{
+						case SDLK_0: 
+							opcao=0;
+						break;
+					}
+				}
+			}
+		}
+
+		while(opcao == 3)
+		{
+			SDL_RenderCopy(gameState.renderer, gameState.creditos, NULL, NULL);
+			SDL_RenderPresent(gameState.renderer);
+
+			while(SDL_PollEvent(&event))
+			{
+				if(event.type == SDL_KEYDOWN)
+				{
+					switch(event.key.keysym.sym)
+					{
+						case SDLK_0: 
+							opcao=0;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if (opcao == 1)
+	{
+		SDL_Delay(1000);
+
+		while(gameRunning == 1)
+		{
+			if (fase2 == 0)
+			{
+				gameRunning = processEvent(window, &gameState);
+
+				doRender(&gameState);
+
+				bulletLogic(&gameState);
+
+				premioLogic(&gameState);
+
+				PremioAparece(window, &gameState);
+
+				collisionPlayerPremio(window, &gameState);
+
+				collisionPlayer(window, &gameState);
+
+				collisionEnemy(window, &gameState);	
+
+				if(gameState.zombie[0].alive == 0 && gameState.zombie[1].alive == 0 && gameState.zombie[2].alive == 0 && gameState.zombie[3].alive == 0)
+				{
+					PremioAparece(window, &gameState);
+					collisionPlayerPremio(window, &gameState);
+
+					if(gameState.premio.aparece == 0)
+						fase2 = 1;					
+				}
+					
+			}	
+
+			if(fase2 == 1)
+			{
+				gameRunning = processEvent(window, &gameState);
+
+				doRender(&gameState);
+
+				bulletLogic(&gameState);
+
+				premioLogic(&gameState);
+
+				PremioAparece(window, &gameState);
+
+				collisionPlayerPremio(window, &gameState);
+
+				collisionPlayer(window, &gameState);
+
+				collisionEnemy(window, &gameState);
+
+				bossLogic(&gameState);
+
+				collisionBoss(&gameState);
+			}
+
+				//SDL_Delay(10);
+		}
+
+		quitGame(window, &gameState);
+
+	}	
+
+	return 0;
+}
